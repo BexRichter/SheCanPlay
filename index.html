@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SheCanPlay</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 </head>
 <body>
     <nav class="top-nav">
@@ -13,16 +14,51 @@
                 <img src="assets/SheCanPlay.svg" alt="SheCanPlay Logo" class="logo">
             </a>
         </div>
-        <div class="nav-links">
-            <a href="holdoversigt.html" class="nav-link">Holdoversigt</a>
-            <a href="index.html" class="nav-link">Presse &amp; Omtale</a>
-            <a href="index.html" class="nav-link">Sekretariat</a>
-        </div>
-        <div class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" role="presentation" focusable="false">
-                <path d="M3 5l18 7-18 7 4.5-7L3 5zm5.3 8.4L6.6 16.7l9.2-4.7-7.5 1.4z" fill="none" stroke="#111" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
-            </svg>
-        </div>
+        <button class="hamburger-menu" id="hamburger" aria-label="Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
     </nav>
+    
+    <!-- Dropdown menu -->
+    <div class="dropdown-menu" id="dropdownMenu">
+        <a href="index.html" class="dropdown-link">Presse & Omtale</a>
+        <a href="holdoversigt.html" class="dropdown-link">Holdoversigt</a>
+        <a href="index.html" class="dropdown-link">Sekretariat</a>
+        <a href="index.html" class="dropdown-link">Kontakt</a>
+    </div>
+    
+    <!-- P5.js animated background canvas -->
+    <div id="p5-background"></div>
+    
+    <script src="p5-background.js"></script>
+    <script>
+        // Hamburger dropdown toggle
+        const hamburger = document.getElementById('hamburger');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        
+        hamburger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hamburger.classList.toggle('active');
+            dropdownMenu.classList.toggle('active');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburger.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                hamburger.classList.remove('active');
+                dropdownMenu.classList.remove('active');
+            }
+        });
+        
+        // Close menu when clicking a link
+        document.querySelectorAll('.dropdown-link').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                dropdownMenu.classList.remove('active');
+            });
+        });
+    </script>
 </body>
 </html>

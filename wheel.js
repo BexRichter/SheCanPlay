@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+// Global state flag for p5 background dimming
+window.P5_BG_DIMMED = false;
+
 // Scene setup
 const scene = new THREE.Scene();
 // No background - transparent so video shows through
@@ -15,6 +18,7 @@ camera.position.z = 6;
 
 // Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setClearColor(0x000000, 0); // Transparent background
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -41,38 +45,34 @@ scene.add(wheelGroup);
 
 // Create four vinyl-like planes with textures - thicker with beveled edges
 const planeSize = 3 * 0.7;
-const imageFiles = ['Laura1.jpg', 'Agnes1.jpg', 'Kayak1.jpg', 'Rosa1.jpg'];
-const artistNames = ['Laura Kjeldgaard Christensen', 'Agnes Hartwich', 'Eva Berghamar', 'Rosa Sandager'];
+const imageFiles = ['LauraD.png', 'AgnesD.png', 'KayakD.png', 'RosaD.png'];
+const artistNames = ['Laura', 'Agnes', 'Eva', 'Rosa'];
 const artistAliases = ['LAURA4EVIGT', '', '', ''];
-const artistColors = [0x5C782D, 0xBA3801, 0xFFEC89, 0x4A69B3]; // olive, rust, yellow, navy
+const artistDisplayNames = ['LAURA\n4EVIGT', 'AGNES\nHARTWICH', 'KAYAK', 'ROSA\nAF\nMANEN'];
+const artistColors = [0xE94B3C, 0xCCDB3D, 0xF4A9C8, 0xB6EEB5]; // red, yellow-green, pink, mint
 const planes = [];
+const triangleOverlays = [];
 
 for (let i = 0; i < 4; i++) {
-    const texture = textureLoader.load(
-        `./assets/${imageFiles[i]}`,
-        () => {
-            console.log(`Loaded ${imageFiles[i]}`);
-        },
-        undefined,
-        () => {
-            console.warn(`Could not load ${imageFiles[i]}`);
-        }
-    );
+  const texture = textureLoader.load(`./assets/${imageFiles[i]}`);
+texture.colorSpace = THREE.SRGBColorSpace;
+texture.premultiplyAlpha = false;
+texture.generateMipmaps = false;
+texture.minFilter = THREE.LinearFilter;
+texture.magFilter = THREE.LinearFilter;
     
-    // Create box geometry for clean thickness without distortion
-    const vinylGeometry = new THREE.BoxGeometry(planeSize, planeSize, 0.02);
-    
-    // Create materials array - texture on front/back, dark on sides
-    const materials = [
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.1 }), // right
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.1 }), // left
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.1 }), // top
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.1 }), // bottom
-        new THREE.MeshStandardMaterial({ map: texture, roughness: 0.1, metalness: 0.0 }), // front
-        new THREE.MeshStandardMaterial({ map: texture, roughness: 0.1, metalness: 0.0 })  // back
-    ];
-    
-    const plane = new THREE.Mesh(vinylGeometry, materials);
+        // Use flat plane geometry to avoid visible side stripes
+        const vinylGeometry = new THREE.PlaneGeometry(planeSize, planeSize);
+        const material = new THREE.MeshStandardMaterial({
+            map: texture,
+            transparent: true,
+            alphaTest: 0.5,
+            depthWrite: true,
+            roughness: 0.1,
+            metalness: 0.0,
+            side: THREE.DoubleSide
+        });
+        const plane = new THREE.Mesh(vinylGeometry, material);
     
     // Position planes in a circle (90 degrees apart)
     const angle = (i * Math.PI) / 2;
@@ -87,6 +87,49 @@ for (let i = 0; i < 4; i++) {
     
     wheelGroup.add(plane);
     planes.push(plane);
+    
+    // Use PNG triangle overlays per artist, aligned to right tip and smaller
+    const triangleFiles = ['Laura_T.png', 'Agnes_T.png', 'Kayak_T.png', 'Rosa_T.png'];
+    const triTexture = textureLoader.load(`./assets/${triangleFiles[i]}`);
+    triTexture.colorSpace = THREE.SRGBColorSpace;
+    triTexture.premultiplyAlpha = false;
+    triTexture.generateMipmaps = false;
+    triTexture.minFilter = THREE.LinearFilter;
+    triTexture.magFilter = THREE.LinearFilter;
+    
+    // Triangle plane size is smaller than image plane
+    const triSize = planeSize * 0.6; // 60% of image size
+    const triangleGeometry = new THREE.PlaneGeometry(triSize, triSize);
+    
+    const triangleMaterial = new THREE.MeshBasicMaterial({
+        map: triTexture,
+        transparent: true,
+        alphaTest: 0.1,  // Ignore pixels with alpha < 0.1 for raycasting
+        side: THREE.DoubleSide,  // Show on both sides so triangles stay visible
+        depthTest: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1
+    });
+    
+    const triangleOverlay = new THREE.Mesh(triangleGeometry, triangleMaterial);
+    // Attach to plane and align so PNG tip meets the image's right tip
+    plane.add(triangleOverlay);
+    triangleOverlay.renderOrder = 2;
+    
+    // Position - Agnes and Rosa need opposite X and Z because their planes are rotated 180°
+    if (i === 1 || i === 3) {
+        // Agnes and Rosa - negative X and negative Z (both opposite)
+        triangleOverlay.position.set(-(planeSize / 2 - triSize / 2), 0, -0.001);
+        triangleOverlay.rotation.set(0, -Math.PI, 0);
+    } else {
+        // Laura and Kayak - positive X and positive Z (works perfectly already)
+        triangleOverlay.position.set(planeSize / 2 - triSize / 2, 0, 0.001);
+        triangleOverlay.rotation.set(0, 0, 0);
+    }
+    
+    triangleOverlays.push(triangleOverlay);
 }
 
 // Create selection indicator (border outline around selected plane)
@@ -101,25 +144,25 @@ const selectionOutline = new THREE.Mesh(outlineGeometry, outlineMaterial);
 selectionOutline.visible = false;
 wheelGroup.add(selectionOutline);
 
-// Create triangle indicator above selected plane (pointing down)
-const triangleShape = new THREE.Shape();
-triangleShape.moveTo(0, -0.3);
-triangleShape.lineTo(-0.25, 0.15);
-triangleShape.lineTo(0.25, 0.15);
-triangleShape.lineTo(0, -0.3);
-
-const triangleGeometry = new THREE.ShapeGeometry(triangleShape);
-const triangleMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0xDDDDE2,
-    side: THREE.DoubleSide
-});
-const triangleIndicator = new THREE.Mesh(triangleGeometry, triangleMaterial);
-triangleIndicator.visible = false;
-wheelGroup.add(triangleIndicator);
+// Triangle indicator removed - no longer needed
 
 // Raycaster for click detection
 const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 0.1; // Threshold for point detection
+// Note: Three.js raycaster doesn't have built-in alpha testing for meshes
+// So we'll check triangle intersections separately
+
 const mouse = new THREE.Vector2();
+
+// Track hover state for triangle animations
+let hoveredPlane = null;
+let hoveredTriangle = null;
+const triangleTargetY = {}; // Track target Y position for each triangle
+const triangleHoverScale = {}; // Track scale for hover effect
+triangleOverlays.forEach((tri, idx) => {
+    triangleTargetY[idx] = 0; // Initial position
+    triangleHoverScale[idx] = 1.0; // Initial scale
+});
 
 // Info overlay element
 const infoOverlay = document.createElement('div');
@@ -151,7 +194,7 @@ infoOverlay.appendChild(infoText);
 
 // Artist data - Dazed style content
 const artistData = {
-    'Laura Kjeldgaard Christensen': {
+    'Laura': {
         overtitle: 'LAURA',
         subtitle: 'KJELDGAARD CHRISTENSEN',
         quote: '',
@@ -162,7 +205,7 @@ const artistData = {
         accentColor: '#1B2A35',
         iconColor: '#F13D05'
     },
-    'Agnes Hartwich': {
+    'Agnes': {
         overtitle: 'AGNES',
         subtitle: 'HARTWICH',
         quote: '',
@@ -171,7 +214,7 @@ const artistData = {
         video: 'Agnes.MP4',
         iconColor: '#FF8C00'
     },
-    'Eva Berghamar': {
+    'Eva': {
         overtitle: 'EVA',
         subtitle: 'BERGHAMAR',
         quote: '',
@@ -182,7 +225,7 @@ const artistData = {
         accentColor: '#C9B74A',
         iconColor: '#C9B74A'
     },
-    'Rosa Sandager': {
+    'Rosa': {
         overtitle: 'ROSA',
         subtitle: 'SANDAGER',
         quote: '',
@@ -226,9 +269,9 @@ videoBackground.style.cssText = `
     width: 100%;
     height: 100%;
     object-fit: cover;
-    z-index: 10;
+    z-index: 11;
     display: none;
-    opacity: 1;
+    opacity: 0;
 `;
 document.body.appendChild(videoBackground);
 
@@ -240,14 +283,15 @@ overlayContent.style.cssText = `
     width: 100%;
     height: 100%;
     padding: 8rem 4rem;
-    z-index: 100;
-    opacity: 1;
-    transition: none;
+    z-index: 150;
+    opacity: 0;
+    transition: opacity 0.3s ease;
     pointer-events: none;
+    display: none;
 `;
 document.body.appendChild(overlayContent);
 
-// Large artist name - Top left
+// Large artist name - REMOVED (user requested deletion)
 const largeName = document.createElement('h1');
 largeName.style.cssText = `
     position: absolute;
@@ -267,10 +311,11 @@ largeName.style.cssText = `
     paint-order: stroke fill;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    display: none;
 `;
 overlayContent.appendChild(largeName);
 
-// Subtitle - Below largeName
+// Subtitle - REMOVED (user requested deletion of both names)
 const subtitle = document.createElement('div');
 subtitle.style.cssText = `
     position: absolute;
@@ -288,6 +333,7 @@ subtitle.style.cssText = `
     paint-order: stroke fill;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    display: none;
 `;
 overlayContent.appendChild(subtitle);
 
@@ -376,10 +422,35 @@ document.body.appendChild(sideBanner);
 // Track if overlay is currently shown
 let currentArtist = null;
 
+// Track which triangle is currently dropped (clicked)
+let activeTriangle = null;
+
+// Mousemove for hover detection on triangles
+window.addEventListener('mousemove', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    raycaster.setFromCamera(mouse, camera);
+    const triangleIntersects = raycaster.intersectObjects(triangleOverlays);
+    
+    if (triangleIntersects.length > 0) {
+        const triangleMesh = triangleIntersects[0].object;
+        const planeIndex = triangleOverlays.indexOf(triangleMesh);
+        
+        if (planeIndex !== -1) {
+            // Show pointer cursor only
+            document.body.style.cursor = 'pointer';
+            hoveredTriangle = planeIndex;
+        }
+    } else {
+        // Reset cursor
+        document.body.style.cursor = 'default';
+        hoveredTriangle = null;
+    }
+});
+
 // Click event listener
 window.addEventListener('click', (event) => {
-    // Check for wheel clicks
-    
     // Calculate mouse position in normalized device coordinates
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -387,20 +458,107 @@ window.addEventListener('click', (event) => {
     // Update raycaster
     raycaster.setFromCamera(mouse, camera);
     
-    // Check for intersections
-    const intersects = raycaster.intersectObjects(planes);
+    // Check for triangle clicks first (only colored areas due to alphaTest)
+    const triangleIntersects = raycaster.intersectObjects(triangleOverlays);
     
-    if (intersects.length > 0) {
-        const clickedPlane = intersects[0].object;
+    if (triangleIntersects.length > 0) {
+        // Clicked on a triangle
+        const triangleMesh = triangleIntersects[0].object;
+        const planeIndex = triangleOverlays.indexOf(triangleMesh);
+        
+        if (planeIndex !== -1) {
+            // TOGGLE: If clicking same active triangle, close overlay and pop back
+            if (activeTriangle === planeIndex && currentArtist !== null) {
+                // Pop triangle back up
+                triangleTargetY[planeIndex] = 0;
+                activeTriangle = null;
+                
+                // Hide artist content with smooth transition
+                hideArtistContent();
+            } else {
+                // Reset previous active triangle
+                if (activeTriangle !== null && activeTriangle !== planeIndex) {
+                    triangleTargetY[activeTriangle] = 0;
+                }
+                
+                // Drop the clicked triangle and keep it down
+                activeTriangle = planeIndex;
+                triangleTargetY[planeIndex] = -0.4;
+                
+                // Show artist content for this plane
+                const clickedPlane = planes[planeIndex];
+                const artistName = clickedPlane.userData.artistName;
+                const data = artistData[artistName];
+                
+                showArtistContent(clickedPlane, artistName, data);
+            }
+        }
+        return; // Don't check plane clicks if triangle was clicked
+    }
+    
+    // Check for plane clicks
+    const planeIntersects = raycaster.intersectObjects(planes);
+    
+    if (planeIntersects.length > 0) {
+        const clickedPlane = planeIntersects[0].object;
+        const planeIndex = clickedPlane.userData.index;
         const bgColor = clickedPlane.userData.backgroundColor;
         const artistName = clickedPlane.userData.artistName;
         const data = artistData[artistName];
         
-        // If clicking same artist, do nothing
-        if (currentArtist === artistName && artistOverlay.style.opacity === '1') return;
+        // Reset previous active triangle
+        if (activeTriangle !== null && activeTriangle !== planeIndex) {
+            triangleTargetY[activeTriangle] = 0;
+        }
         
-        // Function to update overlay content
-        const updateOverlayContent = () => {
+        // Drop the triangle for this plane - 50% less distance
+        activeTriangle = planeIndex;
+        triangleTargetY[planeIndex] = -0.4;
+        
+        showArtistContent(clickedPlane, artistName, data);
+    }
+});
+
+// Function to hide artist content - back to wheel
+function hideArtistContent() {
+    // Smooth fade out
+    overlayContent.style.opacity = '0';
+    artistOverlay.style.opacity = '0';
+    videoBackground.style.opacity = '0';
+    
+    // Restore p5 background to 100% opacity and remove blur
+    const p5bg = document.getElementById('p5-background');
+    p5bg.style.opacity = '1';
+    p5bg.style.filter = 'blur(0px)';
+    
+    setTimeout(() => {
+        overlayContent.style.display = 'none';
+        artistOverlay.style.display = 'none';
+        videoBackground.style.display = 'none';
+        videoBackground.pause();
+        videoBackground.src = '';
+        sideBanner.style.display = 'none';
+        currentArtist = null;
+    }, 300); // Match transition duration
+}
+
+// Function to show artist content
+function showArtistContent(clickedPlane, artistName, data) {
+    const bgColor = clickedPlane.userData.backgroundColor;
+    
+    // If clicking same artist, toggle (hide)
+    if (currentArtist === artistName && artistOverlay.style.opacity === '1') {
+        hideArtistContent();
+        return;
+    }
+    
+    // Dim p5 background to 40% and blur when artist clicked
+    const p5bg = document.getElementById('p5-background');
+    p5bg.style.opacity = '0.4';
+    p5bg.style.filter = 'blur(8px)';
+    
+    // Function to update overlay content
+    const updateOverlayContent = () => {
             // Keep overlay background transparent so wheel stays visible
             artistOverlay.style.background = 'transparent';
             
@@ -412,21 +570,21 @@ window.addEventListener('click', (event) => {
             
             // Update content based on artist
             if (data.subtitle) {
-                // Split name style (Agnes/Laura)
-                largeName.textContent = data.overtitle;
+                // Split name style (Agnes/Laura) - NO NAMES
+                largeName.textContent = '';
                 largeName.style.color = lightColor;
                 // For Laura: break into three lines LAURA / KJELDGAARD / CHRISTENSEN
                 if (artistName === 'Laura Kjeldgaard Christensen') {
                     // Remove middle name, show only last name
-                    subtitle.textContent = 'CHRISTENSEN';
+                    subtitle.textContent = '';
                 } else {
-                    subtitle.textContent = data.subtitle;
+                    subtitle.textContent = '';
                 }
                 subtitle.style.color = lightColor;
                 subtitle.style.display = 'block';
             } else {
-                // Other artists - full name
-                largeName.textContent = data.overtitle;
+                // Other artists - NO NAMES
+                largeName.textContent = '';
                 largeName.style.color = lightColor;
                 subtitle.style.display = 'none';
             }
@@ -519,33 +677,31 @@ window.addEventListener('click', (event) => {
                 sideBanner.style.display = 'none';
             }
             
-            // Update triangle indicator position above selected plane
-            triangleIndicator.visible = true;
-            triangleIndicator.position.copy(clickedPlane.position);
-            triangleIndicator.position.y += planeSize * 0.95; // Position above plane with more space
-            triangleIndicator.rotation.copy(clickedPlane.rotation);
-            
             currentArtist = artistName;
         };
         
-        // Show/update immediately without fade transitions
+        // Show/update with smooth transitions
         updateOverlayContent();
         artistOverlay.style.display = 'block';
-        artistOverlay.style.opacity = '1';
-        overlayContent.style.opacity = '1';
-    }
-});
+        overlayContent.style.display = 'block';
+        
+        // Trigger fade in
+        setTimeout(() => {
+            artistOverlay.style.opacity = '1';
+            overlayContent.style.opacity = '1';
+        }, 10);
+}
 
 // ===== scroll → rotation =====
 let targetRotation = 0;
 let currentRotation = 0;
 
-// Update rotation based on scroll - infinite rotation
+// Update rotation based on scroll - infinite rotation with balanced speed
 function updateWheelRotation() {
   const scrollY = window.scrollY || window.pageYOffset;
   
-  // Infinite rotation - no max, just keeps going
-  targetRotation = (scrollY * 0.002); // Adjust 0.002 for speed
+  // Balanced scroll speed - not too slow, not too fast
+  targetRotation = (scrollY * 0.0006); // Balanced for exploration
 }
 
 window.addEventListener('scroll', updateWheelRotation, { passive: true });
@@ -590,6 +746,16 @@ function animate() {
     const newScale = currentScale + (targetScale - currentScale) * 0.3;
     
     plane.scale.set(newScale, newScale, newScale);
+  });
+
+  // Animate triangle drops with ease
+  triangleOverlays.forEach((tri, idx) => {
+    const targetY = triangleTargetY[idx] || 0;
+    const currentY = tri.position.y;
+    // Smooth ease interpolation - much slower for easier animation
+    const easeSpeed = 0.08;
+    const newY = currentY + (targetY - currentY) * easeSpeed;
+    tri.position.y = newY;
   });
 
   renderer.render(scene, camera);
