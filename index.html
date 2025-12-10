@@ -7,11 +7,11 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 </head>
-<body>
+<body class="frontpage">
     <nav class="top-nav">
         <div class="nav-logo">
             <a href="index.html" aria-label="SheCanPlay logo">
-                <img src="assets/SheCanPlay.svg" alt="SheCanPlay Logo" class="logo">
+                <img src="assets/logo1.svg" alt="SheCanPlay Logo" class="logo">
             </a>
         </div>
         <button class="hamburger-menu" id="hamburger" aria-label="Menu">
@@ -29,10 +29,23 @@
         <a href="index.html" class="dropdown-link">Kontakt</a>
     </div>
     
-    <!-- P5.js animated background canvas -->
-    <div id="p5-background"></div>
+    <!-- Video section -->
+    <div class="video-section">
+        <video id="frontpage-video" autoplay muted loop playsinline>
+            <source src="assets/Video.mp4" type="video/mp4">
+        </video>
+    </div>
+    
+    <!-- Plaster texture overlay -->
+    <div class="plaster-overlay"></div>
+    
+    <!-- Guitar strings section -->
+    <section class="guitar-section">
+        <div id="strings-canvas"></div>
+    </section>
     
     <script src="p5-background.js"></script>
+    <script src="strings.js"></script>
     <script>
         // Hamburger dropdown toggle
         const hamburger = document.getElementById('hamburger');
@@ -59,6 +72,7 @@
                 dropdownMenu.classList.remove('active');
             });
         });
+        
     </script>
 </body>
 </html>

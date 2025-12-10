@@ -14,6 +14,72 @@ body {
   padding-top: 60px;
   margin: 0;
 }
+
+/* Frontpage-specific background */
+body.frontpage {
+  background: #F4A9C8; /* pink */
+  height: auto;
+  padding: 0;
+  margin: 0;
+}
+
+/* Plaster texture overlay */
+.plaster-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('assets/Plaster.png');
+  background-repeat: repeat;
+  background-size: auto;
+  pointer-events: none;
+  z-index: 500;
+  mix-blend-mode: overlay;
+  opacity: 0.4;
+}
+
+/* Video section */
+.video-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#frontpage-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Ensure nav stays above video */
+body.frontpage .top-nav {
+  position: fixed;
+  z-index: 300;
+}
+
+body.frontpage .dropdown-menu {
+  z-index: 299;
+}
+
+/* Guitar strings section */
+.guitar-section {
+  background: #F2EEE9;
+  padding: 20px 0;
+  position: relative;
+}
+
+#strings-canvas {
+  width: 100%;
+  display: block;
+  height: 140px;
+}
 :root {
     --nav-bg: #51518f88;
     --nav-text: #DDDDE2;
